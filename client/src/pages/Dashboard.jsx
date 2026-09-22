@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CheckCheck, ClipboardList, LoaderCircle, Plus, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, CheckCheck, ClipboardList, LoaderCircle, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { completeTask, createTask, deleteTask, getTasks, updateTask } from '../services/taskService.js';
 import TaskList from '../components/TaskList.jsx';
 import TaskForm from '../components/TaskForm.jsx';
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [form, setForm] = useState(null);
   const [notice, setNotice] = useState('');
   const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [busyTaskId, setBusyTaskId] = useState(null);
   const [completionError, setCompletionError] = useState(null);
@@ -74,7 +75,13 @@ export default function Dashboard() {
     setDeleteTarget(null);
   }
 
-  const visibleTasks = filter === 'all' ? tasks : tasks.filter((task) => task.status === filter);
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const statusFilteredTasks = filter === 'all' ? tasks : tasks.filter((task) => task.status === filter);
+  const visibleTasks = normalizedSearch
+    ? statusFilteredTasks.filter((task) =>
+      task.title.toLowerCase().includes(normalizedSearch)
+      || (task.description || '').toLowerCase().includes(normalizedSearch))
+    : statusFilteredTasks;
   const listTitle = filter === 'all' ? 'All tasks' : filter === 'pending' ? 'Pending tasks' : 'Completed tasks';
 
   const completed = tasks.filter((task) => task.status === 'completed').length;
@@ -119,8 +126,15 @@ export default function Dashboard() {
         </dl>
         <section className="tasks-section" aria-labelledby="task-list-title" aria-busy={loading}>
           <div className="section-heading"><h2 id="task-list-title">{listTitle}</h2><span>Newest first</span></div>
-          <div ref={filterGroupRef} className="status-filters" role="group" aria-label="Filter tasks by status">
-            {['all', 'pending', 'completed'].map((value) => <button key={value} type="button" className="filter-button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'all' ? 'All' : value === 'pending' ? 'Pending' : 'Completed'}</button>)}
+          <div className="task-controls">
+            <div ref={filterGroupRef} className="status-filters" role="group" aria-label="Filter tasks by status">
+              {['all', 'pending', 'completed'].map((value) => <button key={value} type="button" className="filter-button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'all' ? 'All' : value === 'pending' ? 'Pending' : 'Completed'}</button>)}
+            </div>
+            <label className="task-search">
+              <Search size={17} aria-hidden="true" />
+              <span className="visually-hidden">Search tasks</span>
+              <input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search tasks" />
+            </label>
           </div>
           {loading ? (
             <div className="state" role="status"><LoaderCircle className="spin" size={26} aria-hidden="true" /><p>Loading tasks...</p></div>
@@ -130,7 +144,7 @@ export default function Dashboard() {
               <button className="button" onClick={() => setRefreshKey((key) => key + 1)}><RefreshCw size={16} aria-hidden="true" />Try again</button>
             </div>
           ) : visibleTasks.length === 0 ? (
-            <div className="state" role="status"><ClipboardList size={32} aria-hidden="true" /><h3>{filter === 'all' ? 'No tasks yet' : `No ${filter} tasks`}</h3><p>{filter === 'all' ? 'Your task list is empty.' : 'No tasks match this status.'}</p></div>
+            <div className="state" role="status"><ClipboardList size={32} aria-hidden="true" /><h3>{normalizedSearch ? 'No matching tasks' : filter === 'all' ? 'No tasks yet' : `No ${filter} tasks`}</h3><p>{normalizedSearch ? 'Try a different search term.' : filter === 'all' ? 'Your task list is empty.' : 'No tasks match this status.'}</p></div>
           ) : <TaskList tasks={visibleTasks} busyTaskId={busyTaskId} onComplete={markCompleted}
             onEdit={(task) => { setNotice(''); setCompletionError(null); setForm({ task }); }}
             onDelete={(task) => { setNotice(''); setCompletionError(null); setDeleteTarget(task); }} />}

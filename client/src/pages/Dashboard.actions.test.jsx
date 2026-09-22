@@ -4,8 +4,8 @@ import Dashboard from './Dashboard.jsx';
 import { completeTask, deleteTask, getTasks } from '../services/taskService.js';
 
 vi.mock('../services/taskService.js', () => ({ getTasks: vi.fn(), createTask: vi.fn(), updateTask: vi.fn(), completeTask: vi.fn(), deleteTask: vi.fn() }));
-const pending = { _id: '1', title: 'Buy groceries', status: 'pending' };
-const completed = { _id: '2', title: 'Pay bill', status: 'completed' };
+const pending = { _id: '1', title: 'Buy groceries', description: 'Get fruit and milk', status: 'pending' };
+const completed = { _id: '2', title: 'Pay bill', description: 'Electricity account', status: 'completed' };
 beforeEach(() => { vi.resetAllMocks(); getTasks.mockResolvedValue([pending, completed]); });
 
 async function openDashboard() {
@@ -24,6 +24,25 @@ test('filters All, Pending, and Completed while preserving overall counts', asyn
   expect(screen.getByRole('heading', { name: completed.title })).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'All', exact: true }));
   expect(screen.getAllByRole('listitem')).toHaveLength(2);
+});
+
+test('searches task titles and descriptions without changing overall counts', async () => {
+  await openDashboard();
+  const search = screen.getByRole('searchbox', { name: 'Search tasks' });
+  fireEvent.change(search, { target: { value: 'electricity' } });
+  expect(screen.queryByRole('heading', { name: pending.title })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: completed.title })).toBeInTheDocument();
+  expect(screen.getByText('Total tasks').nextElementSibling).toHaveTextContent('2');
+  fireEvent.change(search, { target: { value: 'BUY' } });
+  expect(screen.getByRole('heading', { name: pending.title })).toBeInTheDocument();
+});
+
+test('combines search with status filters and shows an empty result', async () => {
+  await openDashboard();
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search tasks' }), { target: { value: 'bill' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Pending', exact: true }));
+  expect(screen.getByRole('heading', { name: 'No matching tasks' })).toBeInTheDocument();
+  expect(screen.getByText('Try a different search term.')).toBeInTheDocument();
 });
 
 test('completion removes a task from Pending and updates totals', async () => {

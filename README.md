@@ -1,7 +1,7 @@
 # Task Management Dashboard
 
 A MERN stack internship assignment for creating, viewing, editing, completing,
-filtering, and deleting tasks through a responsive web interface.
+filtering, searching, and deleting tasks through a responsive web interface.
 
 ## Stack
 
@@ -98,6 +98,10 @@ All, Pending, and Completed controls filter the already-loaded list immediately
 in React. The summary counts always describe all loaded tasks. Refresh fetches
 the current list from MongoDB while preserving the selected filter. The API
 also supports status queries for direct clients, as documented below.
+
+The search field filters the loaded tasks by title or description and works
+together with the selected status filter. Searching is case-insensitive and
+does not change the overall task counts.
 
 The API URL defaults to `http://localhost:5000/api`. If your backend uses another
 port, copy `client/.env.example` to `client/.env`, update `VITE_API_URL`, and
@@ -196,8 +200,8 @@ npm run build
 
 The automated tests use mocked API/database operations where appropriate, so
 they do not require changing Atlas data. Before submission, also run a manual
-browser check: create a task, edit it, mark it completed, filter by status, and
-delete it.
+browser check: create a task, edit it, mark it completed, filter by status,
+search by title or description, and delete it.
 
 ## Health Endpoint
 
