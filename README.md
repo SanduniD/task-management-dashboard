@@ -19,6 +19,32 @@ task-management-dashboard/
 `-- README.md
 ```
 
+## Quick Start
+
+Use two terminals from the project root.
+
+Terminal 1:
+
+```powershell
+cd server
+npm install
+Copy-Item .env.example .env
+npm run dev
+```
+
+Before starting the backend, update `server/.env` with your own
+`MONGODB_URI`. The backend runs on `http://localhost:5000` by default.
+
+Terminal 2:
+
+```powershell
+cd client
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` in a browser.
+
 ## Backend Setup
 
 Install Node.js and npm. From the project root:
@@ -83,11 +109,8 @@ the previous frontend server, or run `npm run dev -- --port 5174` and update
 the backend's `CLIENT_ORIGIN` to match, then restart the backend.
 
 Run `npm run build` in `client` to produce a production build in `dist`.
-Run `npm test` in `client` for loading, empty, populated, retry, and cleanup
-behavior checks, plus form validation, creation, editing, cancellation, pending
-saves, completion, deletion confirmation/cancellation, status filters, action
-failures, duplicate submission prevention, and API request formatting. Tests
-mock API calls and do not modify Atlas data.
+Run `npm test` in `client` for the frontend test suite. Tests mock API calls
+and do not modify Atlas data.
 
 ## MongoDB Setup
 
@@ -156,13 +179,25 @@ for all tasks. Unsupported, empty, or repeated status values return HTTP 400.
 
 ## Tests
 
-From `server`, run `npm test`. The tests exercise the HTTP routes with mocked
-database operations, so they do not require credentials or change Atlas data.
-They cover creation, editing, completion, deletion, filtering, input validation,
-lists, individual reads, missing/invalid IDs, malformed JSON, and database
-failures. Live database persistence should also be checked manually by creating
-a sample task, editing and completing it, checking status filters, and deleting
-that sample task.
+Backend tests:
+
+```powershell
+cd server
+npm test
+```
+
+Frontend tests and production build:
+
+```powershell
+cd client
+npm test
+npm run build
+```
+
+The automated tests use mocked API/database operations where appropriate, so
+they do not require changing Atlas data. Before submission, also run a manual
+browser check: create a task, edit it, mark it completed, filter by status, and
+delete it.
 
 ## Health Endpoint
 
@@ -184,3 +219,14 @@ MongoDB check on each request.
 Build and verify one milestone at a time, then commit the completed changes.
 Keep credentials in local `.env` files. Commit only placeholder values in
 `.env.example` files.
+
+## Submission Checklist
+
+- Source code is committed and pushed.
+- `server/.env` and `client/.env` are not committed.
+- `server/.env.example` and `client/.env.example` are committed.
+- Backend and frontend setup instructions are included above.
+- MongoDB setup instructions are included above.
+- Required API endpoints are documented above.
+- Tests and frontend build pass.
+- Manual browser workflow passes on desktop and mobile.
