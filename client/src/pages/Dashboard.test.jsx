@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import Dashboard from './Dashboard.jsx';
 import { createTask, getTasks, updateTask } from '../services/taskService.js';
 
-vi.mock('../services/taskService.js', () => ({ getTasks: vi.fn(), createTask: vi.fn(), updateTask: vi.fn() }));
+vi.mock('../services/taskService.js', () => ({ getTasks: vi.fn(), createTask: vi.fn(), updateTask: vi.fn(), completeTask: vi.fn(), deleteTask: vi.fn() }));
 beforeEach(() => vi.resetAllMocks());
 
 test('shows loading feedback and disables refresh', () => {

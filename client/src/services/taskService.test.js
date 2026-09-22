@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { createTask, updateTask } from './taskService.js';
+import { completeTask, createTask, deleteTask, updateTask } from './taskService.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -22,4 +22,13 @@ test('uses PUT for edits and surfaces server validation errors', async () => {
 test('reports network failures without discarding the request context', async () => {
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
   await expect(createTask({ title: 'New' })).rejects.toThrow('Cannot reach the server');
+});
+
+test('uses the required completion and deletion routes', async () => {
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+  vi.stubGlobal('fetch', fetch);
+  await completeTask('task-id');
+  expect(fetch).toHaveBeenLastCalledWith(expect.stringMatching(/\/tasks\/task-id\/complete$/), { method: 'PATCH' });
+  await deleteTask('task-id');
+  expect(fetch).toHaveBeenLastCalledWith(expect.stringMatching(/\/tasks\/task-id$/), { method: 'DELETE' });
 });

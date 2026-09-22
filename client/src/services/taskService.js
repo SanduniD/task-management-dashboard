@@ -37,3 +37,11 @@ export function updateTask(id, fields) {
     body: JSON.stringify(fields),
   });
 }
+
+export function completeTask(id) {
+  return request(`/tasks/${encodeURIComponent(id)}/complete`, { method: 'PATCH' });
+}
+
+export function deleteTask(id) {
+  return request(`/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}

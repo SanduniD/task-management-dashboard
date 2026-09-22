@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCheck, ClipboardList, LoaderCircle, Plus, RefreshCw, X } from 'lucide-react';
-import { createTask, getTasks, updateTask } from '../services/taskService.js';
+import { completeTask, createTask, deleteTask, getTasks, updateTask } from '../services/taskService.js';
 import TaskList from '../components/TaskList.jsx';
 import TaskForm from '../components/TaskForm.jsx';
+import DeleteTaskDialog from '../components/DeleteTaskDialog.jsx';
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
@@ -11,6 +12,13 @@ export default function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [form, setForm] = useState(null);
   const [notice, setNotice] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [busyTaskId, setBusyTaskId] = useState(null);
+  const [completionError, setCompletionError] = useState(null);
+  const actionInFlight = useRef(false);
+  const newTaskRef = useRef(null);
+  const filterGroupRef = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -31,8 +39,43 @@ export default function Dashboard() {
       ? current.map((task) => task._id === saved._id ? saved : task)
       : [saved, ...current]);
     setNotice(form.task ? 'Task updated successfully.' : 'Task created successfully.');
+    setCompletionError(null);
     setForm(null);
   }
+
+  async function markCompleted(task) {
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
+    setBusyTaskId(task._id);
+    setNotice('');
+    setCompletionError(null);
+    try {
+      const saved = await completeTask(task._id);
+      setTasks((current) => current.map((item) => item._id === saved._id ? saved : item));
+      setNotice('Task marked as completed.');
+      requestAnimationFrame(() => {
+        if (document.activeElement === document.body) {
+          filterGroupRef.current?.querySelector('[aria-pressed="true"]')?.focus();
+        }
+      });
+    } catch (failure) {
+      setCompletionError({ task, message: failure.message || 'Unable to complete this task.' });
+    } finally {
+      actionInFlight.current = false;
+      setBusyTaskId(null);
+    }
+  }
+
+  async function confirmDelete(task) {
+    await deleteTask(task._id);
+    setTasks((current) => current.filter((item) => item._id !== task._id));
+    setNotice('Task deleted successfully.');
+    setCompletionError(null);
+    setDeleteTarget(null);
+  }
+
+  const visibleTasks = filter === 'all' ? tasks : tasks.filter((task) => task.status === filter);
+  const listTitle = filter === 'all' ? 'All tasks' : filter === 'pending' ? 'Pending tasks' : 'Completed tasks';
 
   const completed = tasks.filter((task) => task.status === 'completed').length;
   const counts = [
@@ -54,17 +97,18 @@ export default function Dashboard() {
         <div className="page-heading">
           <div><p className="eyebrow">WORKSPACE</p><h1>Tasks</h1></div>
           <div className="heading-actions">
-          <button className="button refresh-button" type="button" disabled={loading} aria-label="Refresh"
-            onClick={() => setRefreshKey((key) => key + 1)} title="Refresh tasks">
+          <button className="button refresh-button" type="button" disabled={loading || Boolean(busyTaskId)} aria-label="Refresh"
+            onClick={() => { setCompletionError(null); setRefreshKey((key) => key + 1); }} title="Refresh tasks">
             <RefreshCw size={16} className={loading ? 'spin' : ''} aria-hidden="true" />
             <span className="button-label">Refresh</span>
           </button>
-          <button className="button primary-button" disabled={loading || Boolean(error)} onClick={() => { setNotice(''); setForm({ task: null }); }}>
+          <button ref={newTaskRef} className="button primary-button" disabled={loading || Boolean(error) || Boolean(busyTaskId)} onClick={() => { setNotice(''); setCompletionError(null); setForm({ task: null }); }}>
             <Plus size={17} aria-hidden="true" />New task
           </button>
           </div>
         </div>
         {notice && <div className="success-notice" role="status"><CheckCheck size={18} aria-hidden="true" /><span>{notice}</span><button className="icon-button" aria-label="Dismiss notification" title="Dismiss notification" onClick={() => setNotice('')}><X size={16} aria-hidden="true" /></button></div>}
+        {completionError && <div className="action-error" role="alert"><AlertCircle size={18} aria-hidden="true" /><span>{completionError.message}</span><button className="button" disabled={Boolean(busyTaskId)} onClick={() => markCompleted(completionError.task)}><RefreshCw size={15} aria-hidden="true" />Retry</button><button className="icon-button" aria-label="Dismiss error" title="Dismiss error" onClick={() => setCompletionError(null)}><X size={16} aria-hidden="true" /></button></div>}
         <dl className="stats" aria-label="Task counts">
           {counts.map(({ label, value, style }) => (
             <div className={`stat ${style}`} key={label}>
@@ -74,7 +118,10 @@ export default function Dashboard() {
           ))}
         </dl>
         <section className="tasks-section" aria-labelledby="task-list-title" aria-busy={loading}>
-          <div className="section-heading"><h2 id="task-list-title">All tasks</h2><span>Newest first</span></div>
+          <div className="section-heading"><h2 id="task-list-title">{listTitle}</h2><span>Newest first</span></div>
+          <div ref={filterGroupRef} className="status-filters" role="group" aria-label="Filter tasks by status">
+            {['all', 'pending', 'completed'].map((value) => <button key={value} type="button" className="filter-button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'all' ? 'All' : value === 'pending' ? 'Pending' : 'Completed'}</button>)}
+          </div>
           {loading ? (
             <div className="state" role="status"><LoaderCircle className="spin" size={26} aria-hidden="true" /><p>Loading tasks...</p></div>
           ) : error ? (
@@ -82,12 +129,15 @@ export default function Dashboard() {
               <AlertCircle size={28} aria-hidden="true" /><h3>Couldn't load tasks</h3><p>{error}</p>
               <button className="button" onClick={() => setRefreshKey((key) => key + 1)}><RefreshCw size={16} aria-hidden="true" />Try again</button>
             </div>
-          ) : tasks.length === 0 ? (
-            <div className="state" role="status"><ClipboardList size={32} aria-hidden="true" /><h3>No tasks yet</h3><p>Your task list is empty.</p></div>
-          ) : <TaskList tasks={tasks} onEdit={(task) => { setNotice(''); setForm({ task }); }} />}
+          ) : visibleTasks.length === 0 ? (
+            <div className="state" role="status"><ClipboardList size={32} aria-hidden="true" /><h3>{filter === 'all' ? 'No tasks yet' : `No ${filter} tasks`}</h3><p>{filter === 'all' ? 'Your task list is empty.' : 'No tasks match this status.'}</p></div>
+          ) : <TaskList tasks={visibleTasks} busyTaskId={busyTaskId} onComplete={markCompleted}
+            onEdit={(task) => { setNotice(''); setCompletionError(null); setForm({ task }); }}
+            onDelete={(task) => { setNotice(''); setCompletionError(null); setDeleteTarget(task); }} />}
         </section>
       </main>
-      {form && <TaskForm task={form.task} onSave={saveTask} onClose={() => setForm(null)} />}
+      {form && <TaskForm task={form.task} onSave={saveTask} onClose={() => setForm(null)} fallbackFocusRef={newTaskRef} />}
+      {deleteTarget && <DeleteTaskDialog task={deleteTarget} onConfirm={confirmDelete} onClose={() => setDeleteTarget(null)} fallbackFocusRef={newTaskRef} />}
     </>
   );
 }

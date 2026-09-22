@@ -1,10 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { LoaderCircle, Plus, Save, X } from 'lucide-react';
+import useDialog from '../hooks/useDialog.js';
 
-export default function TaskForm({ task, onSave, onClose }) {
-  const dialogRef = useRef(null);
-  const returnFocusRef = useRef(document.activeElement);
+export default function TaskForm({ task, onSave, onClose, fallbackFocusRef }) {
   const titleRef = useRef(null);
+  const dialogRef = useDialog(titleRef, fallbackFocusRef);
   const submitting = useRef(false);
   const id = useId();
   const [title, setTitle] = useState(task?.title || '');
@@ -13,21 +13,6 @@ export default function TaskForm({ task, onSave, onClose }) {
   const [titleError, setTitleError] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    const previousOverflow = document.body.style.overflow;
-    dialog.showModal();
-    titleRef.current.focus();
-    document.body.style.overflow = 'hidden';
-    return () => {
-      dialog.close();
-      document.body.style.overflow = previousOverflow;
-      queueMicrotask(() => {
-        if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus();
-      });
-    };
-  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
