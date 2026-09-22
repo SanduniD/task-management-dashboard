@@ -73,8 +73,41 @@ not change Windows network settings. Leave it unset when system DNS works.
 
 Tasks have a required, trimmed title, an optional description defaulting to an
 empty string, and a status of `pending` or `completed` (default: `pending`).
-Mongoose manages `createdAt` and `updatedAt` automatically. Task API endpoints
+Mongoose manages `createdAt` and `updatedAt` automatically.
+
+## Task API
+
+Requests and responses use JSON. Use the port configured in your `.env`.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| POST | `/api/tasks` | Create a task; return the saved task with HTTP 201 |
+| GET | `/api/tasks` | Return an array of tasks, newest first, with HTTP 200 |
+| GET | `/api/tasks/:id` | Return one task with HTTP 200 |
+
+Example create request body:
+
+```json
+{
+  "title": "Revise MERN basics",
+  "description": "Practice creating and reading tasks"
+}
+```
+
+Only `title`, `description`, and `status` are accepted as task data; other fields
+are ignored. IDs and timestamps are managed by MongoDB and Mongoose.
+Invalid input or an invalid ID returns HTTP 400. A valid ID with no matching
+task returns HTTP 404. Errors have the format `{ "message": "..." }`.
+An empty task list returns `[]`. Updates, completion, deletion, and filtering
 will be added in the next milestone.
+
+## Tests
+
+From `server`, run `npm test`. The tests exercise the HTTP routes with mocked
+database operations, so they do not require credentials or change Atlas data.
+They cover creation, input validation, lists, individual reads, missing/invalid
+IDs, malformed JSON, and database failures. Live database persistence should
+also be checked manually with a create request followed by a read request.
 
 ## Health Endpoint
 
