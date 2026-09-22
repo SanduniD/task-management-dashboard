@@ -7,13 +7,13 @@ filtering, and deleting tasks through a responsive web interface.
 
 - MongoDB with Mongoose for data storage
 - Express and Node.js for the REST API
-- React with Vite for the frontend (pending)
+- React with Vite for the frontend
 
 ## Project Structure
 
 ```text
 task-management-dashboard/
-|-- client/     React frontend (to be added)
+|-- client/     React frontend, task list, and API service
 |-- server/     Express backend, database configuration, and Task model
 |-- .gitignore
 `-- README.md
@@ -47,6 +47,33 @@ Use `npm start` to run without automatic restarts. Press Ctrl+C to stop.
 The server defaults to port 5000. Set `PORT` in `.env` to change it.
 `CLIENT_ORIGIN` sets the allowed frontend origin and defaults to
 `http://localhost:5173`.
+
+## Frontend Setup
+
+Keep the backend running. In a second terminal, from the project root:
+
+```powershell
+cd client
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`. The dashboard displays real tasks, task counts,
+and loading, empty, and error states. Use Refresh to fetch the latest tasks.
+Task forms and action controls will be added in later milestones.
+
+The API URL defaults to `http://localhost:5000/api`. If your backend uses another
+port, copy `client/.env.example` to `client/.env`, update `VITE_API_URL`, and
+restart Vite. Never put MongoDB credentials in the client environment: variables
+prefixed with `VITE_` are exposed to the browser.
+
+Vite uses port 5173 with strict port checking. If that port is occupied, stop
+the previous frontend server, or run `npm run dev -- --port 5174` and update
+the backend's `CLIENT_ORIGIN` to match, then restart the backend.
+
+Run `npm run build` in `client` to produce a production build in `dist`.
+Run `npm test` in `client` for loading, empty, populated, retry, and cleanup
+behavior checks. Tests mock API calls and do not modify Atlas data.
 
 ## MongoDB Setup
 
