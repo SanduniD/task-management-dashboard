@@ -3,29 +3,54 @@
 A MERN stack internship assignment for creating, viewing, editing, completing,
 filtering, and deleting tasks through a responsive web interface.
 
-## Planned Stack
+## Stack
 
-- MongoDB with Mongoose for data storage
+- MongoDB with Mongoose for data storage (connection pending)
 - Express and Node.js for the REST API
-- React with Vite for the frontend
+- React with Vite for the frontend (pending)
 
 ## Project Structure
 
 ```text
 task-management-dashboard/
 |-- client/     React frontend (to be added)
-|-- server/     Express backend (to be added)
+|-- server/     Express backend
 |-- .gitignore
 `-- README.md
 ```
 
-## Current Progress
+## Backend Setup
 
-The project structure is initialized. Application code and dependencies have not
-been added yet, so there are no startup commands at this stage.
+Install Node.js and npm. From the project root:
 
-MongoDB setup instructions, environment configuration, and API documentation
-will be added as those features are implemented.
+```powershell
+cd server
+npm install
+Copy-Item .env.example .env
+npm run dev
+```
+
+The development command uses nodemon to restart the server when files change.
+Use `npm start` to run without automatic restarts. Press Ctrl+C to stop.
+
+The server defaults to port 5000. Set `PORT` in `.env` to change it.
+`CLIENT_ORIGIN` sets the allowed frontend origin and defaults to
+`http://localhost:5173`.
+
+## Health Endpoint
+
+Open `http://localhost:5000/api/health` in a browser. A successful request returns
+HTTP 200 with:
+
+```json
+{
+  "status": "ok",
+  "message": "Task API is running"
+}
+```
+
+This checks that the HTTP server is responding; it does not check MongoDB.
+Database setup and task endpoints will be added in later milestones.
 
 ## Development
 
