@@ -60,7 +60,11 @@ npm run dev
 
 Open `http://localhost:5173`. The dashboard displays real tasks, task counts,
 and loading, empty, and error states. Use Refresh to fetch the latest tasks.
-Task forms and action controls will be added in later milestones.
+Use New task to create a task and the pencil icon on a task to edit it. Both
+actions use the same form, with title validation, optional description, and a
+status selection. Successful saves update the list and task counts. Failed
+saves keep the form and draft open for retry. Completion/deletion buttons and
+status filter controls will be added in the next milestone.
 
 The API URL defaults to `http://localhost:5000/api`. If your backend uses another
 port, copy `client/.env.example` to `client/.env`, update `VITE_API_URL`, and
@@ -73,7 +77,9 @@ the backend's `CLIENT_ORIGIN` to match, then restart the backend.
 
 Run `npm run build` in `client` to produce a production build in `dist`.
 Run `npm test` in `client` for loading, empty, populated, retry, and cleanup
-behavior checks. Tests mock API calls and do not modify Atlas data.
+behavior checks, plus form validation, creation, editing, cancellation, pending
+saves, and API request formatting. Tests mock API calls and do not modify Atlas
+data.
 
 ## MongoDB Setup
 

@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCheck, ClipboardList, LoaderCircle, RefreshCw } from 'lucide-react';
-import { getTasks } from '../services/taskService.js';
+import { AlertCircle, CheckCheck, ClipboardList, LoaderCircle, Plus, RefreshCw, X } from 'lucide-react';
+import { createTask, getTasks, updateTask } from '../services/taskService.js';
 import TaskList from '../components/TaskList.jsx';
+import TaskForm from '../components/TaskForm.jsx';
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [form, setForm] = useState(null);
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -21,6 +24,15 @@ export default function Dashboard() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [refreshKey]);
+
+  async function saveTask(fields) {
+    const saved = form.task ? await updateTask(form.task._id, fields) : await createTask(fields);
+    setTasks((current) => form.task
+      ? current.map((task) => task._id === saved._id ? saved : task)
+      : [saved, ...current]);
+    setNotice(form.task ? 'Task updated successfully.' : 'Task created successfully.');
+    setForm(null);
+  }
 
   const completed = tasks.filter((task) => task.status === 'completed').length;
   const counts = [
@@ -41,12 +53,18 @@ export default function Dashboard() {
       <main id="main" className="workspace">
         <div className="page-heading">
           <div><p className="eyebrow">WORKSPACE</p><h1>Tasks</h1></div>
-          <button className="button refresh-button" type="button" disabled={loading}
+          <div className="heading-actions">
+          <button className="button refresh-button" type="button" disabled={loading} aria-label="Refresh"
             onClick={() => setRefreshKey((key) => key + 1)} title="Refresh tasks">
             <RefreshCw size={16} className={loading ? 'spin' : ''} aria-hidden="true" />
-            Refresh
+            <span className="button-label">Refresh</span>
           </button>
+          <button className="button primary-button" disabled={loading || Boolean(error)} onClick={() => { setNotice(''); setForm({ task: null }); }}>
+            <Plus size={17} aria-hidden="true" />New task
+          </button>
+          </div>
         </div>
+        {notice && <div className="success-notice" role="status"><CheckCheck size={18} aria-hidden="true" /><span>{notice}</span><button className="icon-button" aria-label="Dismiss notification" title="Dismiss notification" onClick={() => setNotice('')}><X size={16} aria-hidden="true" /></button></div>}
         <dl className="stats" aria-label="Task counts">
           {counts.map(({ label, value, style }) => (
             <div className={`stat ${style}`} key={label}>
@@ -66,9 +84,10 @@ export default function Dashboard() {
             </div>
           ) : tasks.length === 0 ? (
             <div className="state" role="status"><ClipboardList size={32} aria-hidden="true" /><h3>No tasks yet</h3><p>Your task list is empty.</p></div>
-          ) : <TaskList tasks={tasks} />}
+          ) : <TaskList tasks={tasks} onEdit={(task) => { setNotice(''); setForm({ task }); }} />}
         </section>
       </main>
+      {form && <TaskForm task={form.task} onSave={saveTask} onClose={() => setForm(null)} />}
     </>
   );
 }
