@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import app from '../app.js';
 import Task from '../models/Task.js';
 
-test('task create/read API', async (t) => {
+test('task API', async (t) => {
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}/api/tasks`;
@@ -97,5 +97,119 @@ test('task create/read API', async (t) => {
     const response = await fetch(`${base}/507f1f77bcf86cd799439011`);
     assert.equal(response.status, 500);
     assert.deepEqual(await response.json(), { message: 'An unexpected server error occurred.' });
+  });
+
+  const id = '507f1f77bcf86cd799439011';
+  const put = (body, taskId = id) => fetch(`${base}/${taskId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  await t.test('filters tasks by either valid status and supports no filter', async (t) => {
+    let expected = {};
+    t.mock.method(Task, 'find', (filter) => {
+      assert.deepEqual(filter, expected);
+      return { sort: async () => [] };
+    });
+    assert.equal((await fetch(base)).status, 200);
+    for (const status of ['pending', 'completed']) {
+      expected = { status };
+      assert.equal((await fetch(`${base}?status=${status}`)).status, 200);
+    }
+  });
+
+  await t.test('rejects unsupported and repeated status filters', async (t) => {
+    const find = t.mock.method(Task, 'find', () => { throw new Error('Must not query'); });
+    for (const query of ['status=unknown', 'status=', 'status=pending&status=completed']) {
+      assert.equal((await fetch(`${base}?${query}`)).status, 400);
+    }
+    assert.equal(find.mock.callCount(), 0);
+  });
+
+  await t.test('edits allowed fields without accepting IDs, timestamps, or update operators', async (t) => {
+    t.mock.method(Task, 'findByIdAndUpdate', async (taskId, update, options) => {
+      assert.equal(taskId, id);
+      assert.deepEqual(update, { $set: { title: 'Edited', description: '', status: 'pending' } });
+      assert.deepEqual(options, { returnDocument: 'after', runValidators: true });
+      return { _id: id, ...update.$set };
+    });
+    const response = await put({ title: 'Edited', description: '', status: 'pending',
+      _id: 'untrusted', createdAt: '2000-01-01', $unset: { title: 1 } });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).title, 'Edited');
+  });
+
+  await t.test('leaves omitted optional fields unchanged on edit', async (t) => {
+    t.mock.method(Task, 'findByIdAndUpdate', async (taskId, update) => {
+      assert.deepEqual(update, { $set: { title: 'Edited' } });
+      return { _id: id, title: 'Edited', description: 'Keep me', status: 'completed' };
+    });
+    const response = await put({ title: 'Edited' });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).description, 'Keep me');
+  });
+
+  await t.test('rejects invalid edits without writing', async (t) => {
+    const update = t.mock.method(Task, 'findByIdAndUpdate', () => { throw new Error('Must not write'); });
+    for (const body of [{}, [], { title: ' ' }, { title: 3 },
+      { title: 'Task', description: false }, { title: 'Task', status: null }]) {
+      assert.equal((await put(body)).status, 400);
+    }
+    assert.equal(update.mock.callCount(), 0);
+  });
+
+  await t.test('completes tasks repeatedly without changing other fields', async (t) => {
+    t.mock.method(Task, 'findByIdAndUpdate', async (taskId, update, options) => {
+      assert.equal(taskId, id);
+      assert.deepEqual(update, { $set: { status: 'completed' } });
+      assert.deepEqual(options, { returnDocument: 'after', runValidators: true });
+      return { _id: id, title: 'Keep me', status: 'completed' };
+    });
+    for (let i = 0; i < 2; i++) {
+      const response = await fetch(`${base}/${id}/complete`, { method: 'PATCH' });
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).status, 'completed');
+    }
+  });
+
+  await t.test('deletes the requested task', async (t) => {
+    t.mock.method(Task, 'findByIdAndDelete', async (taskId) => {
+      assert.equal(taskId, id);
+      return { _id: id };
+    });
+    const response = await fetch(`${base}/${id}`, { method: 'DELETE' });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { message: 'Task deleted successfully.' });
+  });
+
+  await t.test('returns 400 for invalid IDs on every mutation route', async (t) => {
+    const update = t.mock.method(Task, 'findByIdAndUpdate', () => { throw new Error('Must not write'); });
+    const remove = t.mock.method(Task, 'findByIdAndDelete', () => { throw new Error('Must not write'); });
+    assert.equal((await put({ title: 'Task' }, 'bad-id')).status, 400);
+    assert.equal((await fetch(`${base}/bad-id/complete`, { method: 'PATCH' })).status, 400);
+    assert.equal((await fetch(`${base}/bad-id`, { method: 'DELETE' })).status, 400);
+    assert.equal(update.mock.callCount(), 0);
+    assert.equal(remove.mock.callCount(), 0);
+  });
+
+  await t.test('returns 404 for missing tasks on every mutation route', async (t) => {
+    t.mock.method(Task, 'findByIdAndUpdate', async () => null);
+    t.mock.method(Task, 'findByIdAndDelete', async () => null);
+    assert.equal((await put({ title: 'Task' })).status, 404);
+    assert.equal((await fetch(`${base}/${id}/complete`, { method: 'PATCH' })).status, 404);
+    assert.equal((await fetch(`${base}/${id}`, { method: 'DELETE' })).status, 404);
+  });
+
+  await t.test('returns sanitized errors when writes fail', async (t) => {
+    t.mock.method(Task, 'findByIdAndUpdate', async () => { throw new Error('private'); });
+    t.mock.method(Task, 'findByIdAndDelete', async () => { throw new Error('private'); });
+    t.mock.method(console, 'error', () => {});
+    const responses = [await put({ title: 'Task' }),
+      await fetch(`${base}/${id}/complete`, { method: 'PATCH' }),
+      await fetch(`${base}/${id}`, { method: 'DELETE' })];
+    for (const response of responses) {
+      assert.equal(response.status, 500);
+      assert.deepEqual(await response.json(), { message: 'An unexpected server error occurred.' });
+    }
   });
 });

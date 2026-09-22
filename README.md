@@ -84,6 +84,9 @@ Requests and responses use JSON. Use the port configured in your `.env`.
 | POST | `/api/tasks` | Create a task; return the saved task with HTTP 201 |
 | GET | `/api/tasks` | Return an array of tasks, newest first, with HTTP 200 |
 | GET | `/api/tasks/:id` | Return one task with HTTP 200 |
+| PUT | `/api/tasks/:id` | Edit a task; return the updated task with HTTP 200 |
+| PATCH | `/api/tasks/:id/complete` | Mark completed; return the task with HTTP 200 |
+| DELETE | `/api/tasks/:id` | Delete a task; return a confirmation message with HTTP 200 |
 
 Example create request body:
 
@@ -98,16 +101,27 @@ Only `title`, `description`, and `status` are accepted as task data; other field
 are ignored. IDs and timestamps are managed by MongoDB and Mongoose.
 Invalid input or an invalid ID returns HTTP 400. A valid ID with no matching
 task returns HTTP 404. Errors have the format `{ "message": "..." }`.
-An empty task list returns `[]`. Updates, completion, deletion, and filtering
-will be added in the next milestone.
+An empty task list returns `[]`.
+
+For editing, send a JSON body with a non-empty `title`. Optional `description`
+and `status` fields are changed only when supplied. Send `description: ""` to
+clear it. The response contains the saved task and its updated timestamp.
+Completing a task requires no body; repeating the action keeps it completed.
+Deletion returns `{ "message": "Task deleted successfully." }`; deleting an
+already deleted task returns HTTP 404.
+
+Filter with `GET /api/tasks?status=pending` or `?status=completed`. Omit `status`
+for all tasks. Unsupported, empty, or repeated status values return HTTP 400.
 
 ## Tests
 
 From `server`, run `npm test`. The tests exercise the HTTP routes with mocked
 database operations, so they do not require credentials or change Atlas data.
-They cover creation, input validation, lists, individual reads, missing/invalid
-IDs, malformed JSON, and database failures. Live database persistence should
-also be checked manually with a create request followed by a read request.
+They cover creation, editing, completion, deletion, filtering, input validation,
+lists, individual reads, missing/invalid IDs, malformed JSON, and database
+failures. Live database persistence should also be checked manually by creating
+a sample task, editing and completing it, checking status filters, and deleting
+that sample task.
 
 ## Health Endpoint
 
